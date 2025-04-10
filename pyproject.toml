@@ -4,4 +4,15 @@ version = "0.1.0"
 description = "Your paddy wey sabi"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "langgraph>=0.3.27",
+    "pre-commit>=4.2.0",
+    "pydantic-settings>=2.8.1",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.399",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+]
