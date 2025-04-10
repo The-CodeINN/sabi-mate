@@ -74,7 +74,3 @@ SabiMate, wetin be latest gist for tech?
 
 **SabiMate** no be just assistant – na your **OG wey sabi!**  
 Plug in, vibe with am, and make we dey chop knowledge together!
-
----
-
-Let me know if you want a GitHub-style markdown version or you want to turn this into a website splash page too. We go run am 😎
