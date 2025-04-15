@@ -13,6 +13,8 @@ dependencies = [
     "langgraph>=0.3.27",
     "pre-commit>=4.2.0",
     "pydantic-settings>=2.8.1",
+    "qdrant-client>=1.13.3",
+    "sentence-transformers>=4.0.2",
     "together>=1.5.5",
 ]
 
