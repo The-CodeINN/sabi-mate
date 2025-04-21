@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel, Field
 
 from ai_companion.core.prompts import CHARACTER_CARD_PROMPT, ROUTER_PROMPT
+from ai_companion.core.datetime_utils import get_current_datetime
 from ai_companion.graph.utils.helpers import AsteriskRemovalParser, get_chat_model
 
 
@@ -23,10 +24,19 @@ def get_router_chain():
     return prompt | model
 
 
-def get_character_response_chain(summary: str = ""):
+def get_character_response_chain(summary: str = "", timezone: str = "Africa/Lagos"):
     model = get_chat_model()
 
-    system_message = CHARACTER_CARD_PROMPT
+    # Get current date and time based on specified timezone
+    current_datetime = get_current_datetime(timezone)
+
+    # Format the prompt with the current date and time
+    system_message = CHARACTER_CARD_PROMPT.format(
+        memory_context="{memory_context}",
+        current_activity="{current_activity}",
+        current_datetime=current_datetime,
+    )
+
     if summary:
         system_message += (
             f"\n\nSummary of conversation earlier between SabiMate and the user: {summary}"
