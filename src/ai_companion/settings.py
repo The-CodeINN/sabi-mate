@@ -16,10 +16,10 @@ class Settings(BaseSettings):
 
     TEXT_MODEL_NAME: str = "llama-3.3-70b-versatile"
     SMALL_TEXT_MODEL_NAME: str = "gemma2-9b-it"
-    STT_MODEL_NAME: str = "whisper-large-v3-turbo"
-    TTS_MODEL_NAME: str = "eleven_flash_v2_5"
-    TTI_MODEL_NAME: str = "black-forest-labs/FLUX.1-schnell-Free"
-    ITT_MODEL_NAME: str = "llama-3.2-90b-vision-preview"
+    STT_MODEL_NAME: str = "whisper-large-v3-turbo"  # Speech to text model
+    TTS_MODEL_NAME: str = "eleven_flash_v2_5"  # Text to speech model
+    TTI_MODEL_NAME: str = "black-forest-labs/FLUX.1-schnell-Free"  # Text to image model
+    ITT_MODEL_NAME: str = "llama-3.2-90b-vision-preview"  # Image to text model
 
     MEMORY_TOP_K: int = 3
     ROUTER_MESSAGES_TO_ANALYZE: int = 3
