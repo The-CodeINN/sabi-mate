@@ -1,6 +1,4 @@
 Ayy, **SabiMate** to the world! 🎉  
-Here's a cheerful, expressive, Pidgin-flavored **README** you can use for your AI assistant project:
-
 ---
 
 # 🧠 SabiMate – Your Naija AI Wey Sabi!
