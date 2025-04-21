@@ -125,6 +125,8 @@ async def conversation_node(state: AICompanionState, config: RunnableConfig):
 
 
 async def image_node(state: AICompanionState, config: RunnableConfig):
+    import asyncio
+
     current_activity = ScheduleContextGenerator.get_current_activity()
     memory_context = state.get("memory_context", "")
 
@@ -132,7 +134,8 @@ async def image_node(state: AICompanionState, config: RunnableConfig):
     text_to_image_module = get_text_to_image_module()
 
     scenario = await text_to_image_module.create_scenario(state["messages"][-5:])
-    os.makedirs("generated_images", exist_ok=True)
+    # Using asyncio.to_thread to move the blocking os.makedirs call to a separate thread
+    await asyncio.to_thread(os.makedirs, "generated_images", exist_ok=True)
     img_path = f"generated_images/image_{str(uuid4())}.png"
     await text_to_image_module.generate_image(scenario.image_prompt, img_path)
 
