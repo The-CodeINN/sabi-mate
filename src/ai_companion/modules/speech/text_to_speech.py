@@ -1,3 +1,4 @@
+import asyncio
 import os
 from typing import Optional
 
@@ -33,6 +34,29 @@ class TextToSpeech:
             self._client = ElevenLabs(api_key=settings.ELEVENLABS_API_KEY)
         return self._client
 
+    def _synthesize_sync(self, text: str) -> bytes:
+        """Synchronous helper method to generate audio using the ElevenLabs API.
+        This will be called in a separate thread via asyncio.to_thread."""
+        voice_id = settings.ELEVENLABS_VOICE_ID
+        if voice_id is None:
+            raise TextToSpeechError("ELEVENLABS_VOICE_ID is not set")
+
+        audio_generator = self.client.generate(
+            text=text,
+            voice=Voice(
+                voice_id=voice_id,
+                settings=VoiceSettings(stability=0.75, similarity_boost=0.75),
+            ),
+            model=settings.TTS_MODEL_NAME,
+        )
+
+        # Convert the audio generator to bytes
+        audio_data = b"".join(audio_generator)
+        if not audio_data:
+            raise TextToSpeechError("Failed to synthesize speech.")
+
+        return audio_data
+
     async def synthesize(self, text: str) -> bytes:
         """Convert text to speech using the ElevenLabs API.
 
@@ -49,25 +73,9 @@ class TextToSpeech:
         if not text:
             raise ValueError("Text is empty or invalid.")
 
-        voice_id = settings.ELEVENLABS_VOICE_ID
-        if voice_id is None:
-            raise TextToSpeechError("ELEVENLABS_VOICE_ID is not set")
-
         try:
-            audio_generator = self.client.generate(
-                text=text,
-                voice=Voice(
-                    voice_id=voice_id,
-                    settings=VoiceSettings(stability=0.75, similarity_boost=0.75),
-                ),
-                model=settings.TTI_MODEL_NAME,
-            )
-
-            # Convert the audio generator to bytes
-            audio_data = b"".join(audio_generator)
-            if not audio_data:
-                raise TextToSpeechError("Failed to synthesize speech.")
-
+            # Use asyncio.to_thread to run the blocking ElevenLabs API call in a separate thread
+            audio_data = await asyncio.to_thread(self._synthesize_sync, text)
             return audio_data
 
         except Exception as e:

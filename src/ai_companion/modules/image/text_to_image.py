@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import logging
 import os
@@ -40,18 +41,16 @@ class TextToImage:
 
 
     This class is responsible for generating images based on text prompts using the Together API.
-    It validates required environment variables and provides methods for image generation and scenario creation.
-
-    """
+    It validates required environment variables and provides methods for image generation and scenario creation."""
 
     # Required environment variables
     REQUIRED_ENV_VARS = ["TOGETHER_API_KEY", "GROQ_API_KEY"]
 
     def __init__(self):
         """Initialize the TextToImage class and validate environment variables."""
-        self._validate_env_vars()
         self._client: Optional[Together] = None
         self._logger = logging.getLogger(__name__)
+        self._validate_env_vars()
 
     def _validate_env_vars(self) -> None:
         """Check if required environment variables are set."""
@@ -68,15 +67,43 @@ class TextToImage:
             self._client = Together(api_key=settings.TOGETHER_API_KEY)
         return self._client
 
+    def _generate_image_sync(
+        self,
+        prompt: str,
+        model: str,
+        width: int,
+        height: int,
+        steps: int,
+        n: int,
+        response_format: str,
+    ):
+        """Synchronous helper method to generate an image using the Together API.
+        This will be called in a separate thread via asyncio.to_thread."""
+        return self.together_client.images.generate(
+            prompt=prompt,
+            model=model,
+            width=width,
+            height=height,
+            steps=steps,
+            n=n,
+            response_format=response_format,
+        )
+
+    def _write_file_sync(self, path: str, data: bytes):
+        """Synchronous helper method to write data to a file.
+        This will be called in a separate thread via asyncio.to_thread."""
+        with open(path, "wb") as file:
+            file.write(data)
+
     async def generate_image(self, prompt: str, output_path: str = "") -> bytes:
         """Generate an image from the given prompt and save it to the specified output path."""
-
         if not prompt:
             raise ValueError("Prompt is empty or invalid.")
 
         try:
-            # Generate the image using the Together API
-            response = self.together_client.images.generate(
+            # Generate the image using the Together API in a separate thread
+            response = await asyncio.to_thread(
+                self._generate_image_sync,
                 prompt=prompt,
                 model=settings.TTI_MODEL_NAME,
                 width=1024,
@@ -90,7 +117,7 @@ class TextToImage:
             if not response or not hasattr(response, "data") or not response.data:
                 raise TextToImageError("Invalid or empty response from image generation API")
 
-            # Save the image to the specified output path
+            # Process the image data
             if not hasattr(response.data[0], "b64_json") or not response.data[0].b64_json:
                 raise TextToImageError("Response does not contain expected b64_json data")
 
@@ -99,10 +126,10 @@ class TextToImage:
             if not image_data:
                 raise TextToImageError("Generated image data is empty.")
 
+            # Save the image to the specified output path
             if output_path:
-                with open(output_path, "wb") as image_file:
-                    image_file.write(image_data)
-                    self._logger.info(f"Image saved to {output_path}")
+                await asyncio.to_thread(self._write_file_sync, output_path, image_data)
+                self._logger.info(f"Image saved to {output_path}")
 
             self._logger.info("Image generated and saved successfully.")
             return image_data
@@ -113,7 +140,6 @@ class TextToImage:
 
     async def create_scenario(self, chat_history: Optional[list] = None) -> ScenarioPrompt:
         """Create a first-person narrative scenario for image generation based on chat history."""
-
         try:
             if chat_history is None or len(chat_history) == 0:
                 formatted_history = ""
@@ -141,7 +167,7 @@ class TextToImage:
                 | structured_llm
             )
 
-            scenario = chain.invoke({"chat_history": formatted_history})
+            scenario = await chain.ainvoke({"chat_history": formatted_history})
             self._logger.info(f"Generated scenario: {scenario}")
 
             # Ensure we return a proper ScenarioPrompt instance
@@ -156,7 +182,6 @@ class TextToImage:
 
     async def enhance_prompt(self, prompt: str) -> str:
         """Enhance the given prompt using the Groq API."""
-
         try:
             if not prompt:
                 raise ValueError("Prompt is empty or invalid.")
@@ -180,7 +205,7 @@ class TextToImage:
                 | structured_llm
             )
 
-            enhanced_prompt = chain.invoke({"prompt": prompt})
+            enhanced_prompt = await chain.ainvoke({"prompt": prompt})
             self._logger.info(f"Enhanced prompt: {enhanced_prompt}")
 
             # Extract the content field from the EnhancedPrompt object
