@@ -4,7 +4,10 @@ from datetime import datetime
 from typing import List, Optional
 
 from ai_companion.core.prompts import MEMORY_ANALYSIS_PROMPT
-from ai_companion.modules.memory.long_term.vector_store import get_vector_store
+from ai_companion.modules.memory.long_term.vector_store import (
+    get_vector_store,
+    get_vector_store_async,
+)
 from ai_companion.settings import settings
 from langchain_core.messages import BaseMessage
 from langchain_groq import ChatGroq
@@ -62,8 +65,11 @@ class MemoryManager:
         # Analyze the message for importance and formatting
         analysis = await self._analyze_memory(content)
         if analysis.is_important and analysis.formatted_memory:
+            # Get async version of vector store for operations in async context
+            vector_store = await get_vector_store_async()
+
             # Check if similar memory exists
-            similar = self.vector_store.find_similar_memory(analysis.formatted_memory)
+            similar = await vector_store.find_similar_memory_async(analysis.formatted_memory)
             if similar:
                 # Skip storage if we already have a similar memory
                 self.logger.info(f"Similar memory already exists: '{analysis.formatted_memory}'")
@@ -71,7 +77,7 @@ class MemoryManager:
 
             # Store new memory
             self.logger.info(f"Storing new memory: '{analysis.formatted_memory}'")
-            self.vector_store.store_memory(
+            await vector_store.store_memory_async(
                 text=analysis.formatted_memory,
                 metadata={
                     "id": str(uuid.uuid4()),
@@ -79,8 +85,20 @@ class MemoryManager:
                 },
             )
 
+    async def get_relevant_memories_async(self, context: str) -> List[str]:
+        """Retrieve relevant memories based on the current context asynchronously."""
+        vector_store = await get_vector_store_async()
+        memories = await vector_store.search_memories_async(context, k=settings.MEMORY_TOP_K)
+        if memories:
+            for memory in memories:
+                self.logger.debug(f"Memory: '{memory.text}' (score: {memory.score:.2f})")
+        return [memory.text for memory in memories]
+
     def get_relevant_memories(self, context: str) -> List[str]:
-        """Retrieve relevant memories based on the current context."""
+        """Retrieve relevant memories based on the current context synchronously.
+        Note: This method is blocking and should not be used in async contexts.
+        Use get_relevant_memories_async instead when in an async context.
+        """
         memories = self.vector_store.search_memories(context, k=settings.MEMORY_TOP_K)
         if memories:
             for memory in memories:
@@ -97,3 +115,11 @@ class MemoryManager:
 def get_memory_manager() -> MemoryManager:
     """Get a MemoryManager instance."""
     return MemoryManager()
+
+
+async def get_memory_manager_async() -> MemoryManager:
+    """Get a MemoryManager instance with async initialization."""
+    manager = MemoryManager()
+    # Ensure vector store is initialized asynchronously
+    await get_vector_store_async()
+    return manager
